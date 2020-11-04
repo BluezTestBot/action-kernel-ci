@@ -418,18 +418,25 @@ class CheckGitLint(CiBase):
         return output
 
 
-class CheckBuild(CiBase):
-    name = "checkbuild"
-    display_name = "CheckBuild"
+class CheckBuildK(CiBase):
+    name = "checkbuildk"
+    display_name = "CheckBuildK"
+
+    build_config = "/bluetooth_build.config"
 
     def config(self):
         """
         Configure the test cases.
         """
-        pass
+        logger.debug("Parser configuration")
+
+        if self.name in config:
+            if 'config_path' in config[self.name]:
+                self.build_config = config[self.name]['config_path']
+        logger.debug("build_config = %s" % self.build_config)
 
     def run(self):
-        logger.debug("##### Run CheckBuild Test #####")
+        logger.debug("##### Run CheckBuildK Test #####")
 
         self.enable = config_enable(config, self.name)
 
@@ -439,10 +446,17 @@ class CheckBuild(CiBase):
         if self.enable == False:
             self.skip("Disabled in configuration")
 
-        # bootstrap-configure
-        (ret, stdout, stderr) = run_cmd("./bootstrap-configure",
-                                        "--enable-external-ell",
+        # Copy bluetooth build config
+        logger.info("Copy config file: %s" % self.build_config)
+        (ret, stdout, stderr) = run_cmd("cp", self.build_config, ".config",
                                         cwd=src_dir)
+        if ret:
+            self.add_failure(stderr)
+            raise EndTest
+
+        # Update .config
+        logger.info("Run make olddepconfig")
+        (ret, stdout, stderr) = run_cmd("make", "olddepconfig", cwd=src_dir)
         if ret:
             self.add_failure(stderr)
             raise EndTest

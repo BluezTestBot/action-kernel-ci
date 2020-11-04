@@ -34,6 +34,6 @@ line-length=72
 min-length=1
 ```
 
-### Checkbuild
+### Checkbuildk
 
 Run make to build
