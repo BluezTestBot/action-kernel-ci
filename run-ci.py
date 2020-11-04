@@ -456,7 +456,7 @@ class CheckBuildK(CiBase):
 
         # Update .config
         logger.info("Run make olddepconfig")
-        (ret, stdout, stderr) = run_cmd("make", "olddepconfig", cwd=src_dir)
+        (ret, stdout, stderr) = run_cmd("make", "olddefconfig", cwd=src_dir)
         if ret:
             self.add_failure(stderr)
             raise EndTest
