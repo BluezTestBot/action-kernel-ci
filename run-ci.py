@@ -311,6 +311,19 @@ class CheckPatch(CiBase):
                 self.checkpatch_pl = config[self.name]['bin_path']
         logger.debug("checkpatch_pl = %s" % self.checkpatch_pl)
 
+    def is_workflow_patch(self, commit):
+        """
+        If the message contains a word "workflow", then return true.
+        This is basically to prevent the workflow patch for github from running
+        checkpatch and send an email to the submitter, which is nothong to do
+        with the submitter
+        """
+        if commit.commit.message.find("workflow:") >= 0:
+            return True
+
+        return False
+
+
     def run(self):
         logger.debug("##### Run CheckPatch Test #####")
 
@@ -322,6 +335,11 @@ class CheckPatch(CiBase):
             self.skip("Disabled in configuration")
 
         for commit in github_commits:
+            # Skip checkpatch if the patch is for workflow - workaround
+            if self.is_workflow_patch(commit):
+                logger.info("Skip workflow patch")
+                continue
+
             output = self.run_checkpatch(commit.sha)
             if output != None:
                 msg = "{}\n{}".format(commit.commit.message.splitlines()[0],
