@@ -360,12 +360,14 @@ class CheckPatch(CiBase):
         logger.info("Commit SHA: %s" % sha)
 
         diff = subprocess.Popen(('git', 'show', '--format=email', sha),
-                                stdout=subprocess.PIPE)
+                                stdout=subprocess.PIPE,
+                                cwd=src_dir)
         try:
             subprocess.check_output((self.checkpatch_pl, '--no-tree', '-'),
                                     stdin=diff.stdout,
                                     stderr=subprocess.STDOUT,
-                                    shell=True)
+                                    shell=True,
+                                    cwd=src_dir)
         except subprocess.CalledProcessError as ex:
             output = ex.output.decode("utf-8")
             logger.error("checkpatch returned error/warning")
@@ -422,12 +424,14 @@ class CheckGitLint(CiBase):
         logger.info("Commit SHA: %s" % sha)
 
         commit = subprocess.Popen(('git', 'log', '-1', '--pretty=%B', sha),
-                                  stdout=subprocess.PIPE)
+                                  stdout=subprocess.PIPE,
+                                  cwd=src_dir)
         try:
             subprocess.check_output(('gitlint', '-C', self.gitlint_config),
                                     stdin=commit.stdout,
                                     stderr=subprocess.STDOUT,
-                                    shell=True)
+                                    shell=True,
+                                    cwd=src_dir)
         except subprocess.CalledProcessError as ex:
             output = ex.output.decode("utf-8")
             logger.error("gitlint returned error/warning")
@@ -642,6 +646,8 @@ def parse_args():
                         help='Pull request number')
     parser.add_argument('-r', '--repo', required=True,
                         help='Github repo in :owner/:repo')
+    parser.add_argument('-s', '--src-path', required=True,
+                        help='Path of bluetooth kernel source')
     parser.add_argument('-v', '--verbose', action='store_true',
                         help='Display debugging info')
 
@@ -659,8 +665,7 @@ def main():
 
     init_github(args.repo, args.pr_num)
 
-    # Assume that the current dir is the top source path
-    src_dir = os.path.abspath(os.path.curdir)
+    src_dir = args.src_path
 
     # Run CI tests
     try:

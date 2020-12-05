@@ -1,17 +1,23 @@
 #!/usr/bin/env bash
 
-echo "Workflow:   $GITHUB_WORKFLOW"
-echo "Action:     $GITHUB_ACTION"
-echo "Actor:      $GITHUB_ACTOR"
-echo "Repository: $GITHUB_REPOSITORY"
-echo "Event-name: $GITHUB_EVENT_NAME"
-echo "Event-path: $GITHUB_EVENT_PATH"
-echo "Workspace:  $GITHUB_WORKSPACE"
-echo "SHA:        $GITHUB_SHA"
-echo "REF:        $GITHUB_REF"
-echo "HEAD-REF:   $GITHUB_HEAD_REF"
-echo "BASE-REF:   $GITHUB_BASE_REF"
-echo "PWD:        $(pwd)"
+echo "Environment Variables:"
+echo "   Workflow:   $GITHUB_WORKFLOW"
+echo "   Action:     $GITHUB_ACTION"
+echo "   Actor:      $GITHUB_ACTOR"
+echo "   Repository: $GITHUB_REPOSITORY"
+echo "   Event-name: $GITHUB_EVENT_NAME"
+echo "   Event-path: $GITHUB_EVENT_PATH"
+echo "   Workspace:  $GITHUB_WORKSPACE"
+echo "   SHA:        $GITHUB_SHA"
+echo "   REF:        $GITHUB_REF"
+echo "   HEAD-REF:   $GITHUB_HEAD_REF"
+echo "   BASE-REF:   $GITHUB_BASE_REF"
+echo "   PWD:        $(pwd)"
+
+SRC_PATH=$GITHUB_WORKSPACE/$1
+
+echo "Input Parameters"
+echo "   Source Path: $SRC_PATH"
 
 if [ -z "$GITHUB_TOKEN" ]; then
 	echo "Set GITHUB_TOKEN environment variable"
@@ -22,4 +28,4 @@ fi
 PR=${GITHUB_REF#"refs/pull/"}
 PR=${PR%"/merge"}
 
-/run-ci.py -c /config.ini -p $PR -r $GITHUB_REPOSITORY -v
+/run-ci.py -c /config.ini -p $PR -r $GITHUB_REPOSITORY -s $SRC_PATH -v
