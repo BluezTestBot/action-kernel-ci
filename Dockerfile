@@ -6,4 +6,4 @@ COPY *.ini /
 COPY *.config /
 COPY gitlint /.gitlint
 
-CMD [ "/entrypoint.sh" ]
+ENTRYPOINT [ "/entrypoint.sh" ]
