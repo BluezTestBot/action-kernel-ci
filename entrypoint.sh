@@ -15,9 +15,11 @@ echo "   BASE-REF:   $GITHUB_BASE_REF"
 echo "   PWD:        $(pwd)"
 
 SRC_PATH=$GITHUB_WORKSPACE/$1
+BLUEZ_PATH=$GITHUB_WORKSPACE/$2
 
 echo "Input Parameters"
 echo "   Source Path: $SRC_PATH"
+echo "   Bluez Path: $BLUEZ_PATH"
 
 if [ -z "$GITHUB_TOKEN" ]; then
 	echo "Set GITHUB_TOKEN environment variable"
