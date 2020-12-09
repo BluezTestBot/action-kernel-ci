@@ -30,4 +30,10 @@ fi
 PR=${GITHUB_REF#"refs/pull/"}
 PR=${PR%"/merge"}
 
-/run-ci.py -c /config.ini -p $PR -r $GITHUB_REPOSITORY -s $SRC_PATH -v
+# Make Result directory
+mkdir results
+
+/run-ci.py -c /config.ini -p $PR -r $GITHUB_REPOSITORY -s $SRC_PATH -b $BLUEZ_PATH -v
+
+# Save the test-runner results
+tar -cvzf results.tar.gz results

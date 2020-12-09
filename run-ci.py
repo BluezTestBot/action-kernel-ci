@@ -11,8 +11,10 @@ import smtplib
 import email.utils
 from enum import Enum
 from github import Github
+from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from pathlib import Path
 
 # Globals
 logger = None
@@ -26,8 +28,12 @@ pw_sid = None
 pw_series = None
 
 src_dir = None
+bluez_dir = None
 
 test_suite = {}
+
+# Test Runner Context
+test_runner_context = None
 
 PW_BASE_URL = "https://patchwork.kernel.org/api/1.1"
 
@@ -222,7 +228,7 @@ def is_maintainer_only():
 
     return False
 
-def compose_email(title, body, submitter, msgid):
+def compose_email(title, body, submitter, msgid, attachments=[]):
     """
     Compose and send email
     """
@@ -250,6 +256,16 @@ def compose_email(title, body, submitter, msgid):
 
     logger.debug("Mail Message: {}".format(msg))
 
+    # Attachment
+    logger.debug("Attachment count=%d" % len(attachments))
+    for logfile in attachments:
+        logfile_base = os.path.basename(logfile)
+        with open(logfile, "rb") as f:
+            part = MIMEApplication(f.read(), Name=logfile_base)
+        part['Content-Disposition'] = 'attachment; filename="%s"' % logfile_base
+        msg.attach(part)
+        logger.debug("Attached file: %s(%s)" % (logfile, logfile_base))
+
     # Send email
     send_email(sender, receivers, msg)
 
@@ -275,6 +291,13 @@ class CiBase:
 
     def success(self):
         self.verdict = Verdict.PASS
+
+    def add_success(self, msg):
+        self.verdict = Verdict.PASS
+        if not self.output:
+            self.output = msg
+        else:
+            self.output += "\n" + msg
 
     def error(self, msg):
         self.verdict = Verdict.ERROR
@@ -493,6 +516,219 @@ class CheckBuildK(CiBase):
         self.success()
 
 
+class CheckTestRunnerSetup(CiBase):
+    name = "checktestrunnersetup"
+    display_name = "CheckTestRunner: Setup"
+
+    test_list = []
+    runner = None
+    kernel_img = None
+    results_dir = None
+    result_logs = []
+
+    def config(self):
+        """
+        Configure the test cases.
+        """
+        logger.debug("Parser configuration")
+
+        default_test_list = ["bnep-tester",
+                             "l2cap-tester",
+                             "mgmt-tester",
+                             "rfcomm-tester",
+                             "sco-tester",
+                             "smp-tester",
+                             "userchan-tester"]
+
+        if self.name in config:
+            if 'test_list' in config[self.name]:
+                self.test_list = "".join(config[self.name]['test_list'].splitlines()).split(",")
+            else:
+                self.test_list = default_test_list
+        logger.debug("test list = %s" % self.test_list)
+
+        # Create result directory
+        ws_path = os.getenv("GITHUB_WORKSPACE")
+        if ws_path:
+            self.results_dir = os.path.join(ws_path, "results")
+            Path(self.results_dir).mkdir(parents=True, exist_ok=True)
+            logger.debug("Results directory is created: %s" % self.results_dir)
+
+    def build_bluez(self):
+        """
+        Build BlueZ and return the path of test-runner otherwiase None
+        """
+        logger.debug("Build BlueZ Source")
+
+        # Configure BlueZ
+        logger.info("Configure the BlueZ source")
+        (ret, stdout, stderr) = run_cmd("./bootstrap-configure",
+                                        "--enable-external-ell",
+                                        cwd=bluez_dir)
+        if ret:
+            logger.error("Unable to configure the bluez")
+            return False
+
+        # make
+        logger.info("Run make")
+        (ret, stdout, stderr) = run_cmd("make", "-j2", cwd=bluez_dir)
+        if ret:
+            logger.error("Unable to build bluez")
+            return False
+
+        tester_path = os.path.join(bluez_dir, "tools/test-runner")
+        if not os.path.exists(tester_path):
+            logger.error("Unable to find the test-runner binary")
+            return None
+
+        logger.debug("test-runner path: %s" % tester_path)
+        return tester_path
+
+    def build_kernel(self):
+        """
+        Build Bluetooth-Next with tester.config and return the path of
+        kernel image file otherwise None
+        """
+        logger.debug("Build Bluetooth-Next Source with tester config")
+
+        # Default tester config
+        # TODO: Pick up from the BlueZ Source doc/tester.config
+        build_config = "/tester.config"
+
+        # Copy bluetooth build config
+        logger.info("Copy tester config file: %s" % build_config)
+        (ret, stdout, stderr) = run_cmd("cp", build_config, ".config",
+                                        cwd=src_dir)
+        if ret:
+            logger.error("Unable to copy config file")
+            return None
+
+        # Update .config
+        logger.info("Run make olddefconfig")
+        (ret, stdout, stderr) = run_cmd("make", "olddefconfig", cwd=src_dir)
+        if ret:
+            logger.error("Unable to run make olddefconfig")
+            return None
+
+        # make
+        (ret, stdout, stderr) = run_cmd("make", "-j2", cwd=src_dir)
+        if ret:
+            logger.error("Unable to make the image")
+            return None
+
+        # Retrun image file
+        bzimage_path = os.path.join(src_dir, "arch/x86/boot/bzImage")
+        if not os.path.exists(bzimage_path):
+            logger.error("Unable to find bzImage from: %s" % bzimage_path)
+            return None
+
+        logger.debug("bzImage file from: %s" % bzimage_path)
+        return bzimage_path
+
+    def run(self):
+        logger.debug("##### Run CheckTestRunner Setup #####")
+
+        global test_runner_context
+
+        self.enable = config_enable(config, self.name)
+
+        self.config()
+
+        # Check if it is disabled.
+        if self.enable == False:
+            self.skip("Disabled in configuration")
+
+        # Build BlueZ
+        self.runner = self.build_bluez()
+        if self.runner == None:
+            self.add_failure("Unable to build BlueZ source")
+            raise EndTest
+
+        # Build Kernel image for tester
+        self.kernel_img = self.build_kernel()
+        if self.kernel_img == None:
+            self.add_failure("Unable to build Kernel image for tester")
+            raise EndTest
+
+        # At this point, consider test passed here
+        test_runner_context = self
+        self.success()
+
+
+class CheckTestRunner(CiBase):
+    name = "checktestrunner"
+    display_name = "CheckTestRunner: "
+    tester = None
+    test_summary = None
+
+    def __init__(self, tester="default"):
+        """
+        Init test object for tester
+        """
+        self.tester = tester
+        self.name = self.name + tester
+        self.display_name = self.display_name + tester
+
+    def config(self):
+        """
+        Configure the test cases.
+        """
+        logger.debug("Parser configuration - nothing to do. skip")
+
+    def save_result_log(self, log):
+        """
+        Save the test result(log) to the file
+        """
+        global test_runner_context
+
+        if test_runner_context.results_dir:
+            logfile_path = os.path.join(test_runner_context.results_dir, self.tester + ".log")
+            logger.debug("Save the result to the file: %s" % logfile_path)
+            with open(logfile_path, 'w') as output_file:
+                output_file.write(log)
+
+            # Save the logfile path to the context for later use (attachment)
+            test_runner_context.result_logs.append(logfile_path)
+
+    def run(self):
+        logger.debug("##### Run CheckTestRunner - %s #####" % self.tester)
+
+        self.config()
+
+        # Check if testrunner is ready
+        if test_runner_context == None:
+            logger.debug("Test Runner is Not Ready. Skip testing %s" % self.tester)
+            self.skip("Test Runner is Not Ready")
+
+        # Get Tester Path
+        tester_path = os.path.join(bluez_dir, "tools", self.tester)
+        if not os.path.exists(tester_path):
+            self.add_failure("Unable to find tester: %s" % tester_path)
+            raise EndTest
+
+        # Running Tester
+        (ret, stdout, stderr) = run_cmd(test_runner_context.runner, "-k", test_runner_context.kernel_img, "--", tester_path)
+        if ret:
+            logger.error("Failed to run tester: ret: %d" % ret)
+            self.add_failure("Failed to run tester")
+            raise EndTest
+
+        # Remove terminal color macro
+        stdout_clean = re.sub(r"?\^?\[\[\d?\;?\d+m", "", stdout)
+
+        # Save the result to the log file
+        self.save_result_log(stdout_clean)
+
+        # verdict result
+        for line in stdout_clean.splitlines():
+            if re.search(r"^Total: ", line):
+                self.test_summary = line
+                self.add_success(line)
+                return
+
+        self.add_failure("No test result found")
+
+
 class EndTest(Exception):
     """
     End of Test
@@ -515,6 +751,12 @@ def run_ci(args):
 
     # Run tests
     for testcase in CiBase.__subclasses__():
+
+        # skip for test runner class
+        if testcase.__name__ == "CheckTestRunner":
+            logger.debug("Skip for test runner class for now")
+            break
+
         test = testcase()
 
         test_suite[test.name] = test
@@ -533,43 +775,59 @@ def run_ci(args):
         logger.debug("Post message to github: " + test.output)
         github_pr_post_comment(test.name, test.verdict.name, test.output)
 
+    if test_runner_context:
+        logger.debug("Running for tester")
+        for tester in test_runner_context.test_list:
+            logger.debug("running tester: %s" % tester)
+            test = CheckTestRunner(tester)
+            test_suite[test.name] = test
+
+            try:
+                test.run()
+            except EndTest:
+                logger.debug("Test Ended")
+
+            logger.info("Process test result for " + test.name)
+
+            if test.verdict == Verdict.FAIL:
+                num_fails += 1
+
+            logger.info(test.name + " result: " + test.verdict.name)
+            logger.debug("Post message to github: " + test.output)
+            github_pr_post_comment(test.name, test.verdict.name, test.output)
+
     return num_fails
-
-TEST_REPORT_PASS = '''##############################
-Test: {} - PASS
-
-'''
-
-TEST_REPORT_FAIL = '''##############################
-Test: {} - {}
-Output:
-{}
-
-'''
 
 def report_ci():
     """
     Generate CI result report and send email
     """
 
+    TEST_REPORT =  '''##############################
+    Test: {} - {}
+    {}
+
+    '''
+
     results = ""
 
     for test_name, test in test_suite.items():
         if test.verdict == Verdict.PASS:
-            results += TEST_REPORT_PASS.format(test.display_name)
+            results += TEST_REPORT.format(test.display_name, "PASS", test.output)
         if test.verdict == Verdict.FAIL:
-            results += TEST_REPORT_FAIL.format(test.display_name, "FAIL", test.output)
+            results += TEST_REPORT.format(test.display_name, "FAIL", test.output)
         if test.verdict == Verdict.ERROR:
-            results += TEST_REPORT_FAIL.format(test.display_name, "ERROR", test.output)
+            results += TEST_REPORT.format(test.display_name, "ERROR", test.output)
         if test.verdict == Verdict.SKIP:
-            results += TEST_REPORT_FAIL.format(test.display_name, "SKIPPED", test.output)
+            results += TEST_REPORT.format(test.display_name, "SKIPPED", test.output)
 
     body = EMAIL_MESSAGE.format(pw_series["web_url"], results)
 
     patch = pw_series['patches'][0]
 
     # Compose email and send
-    compose_email(pw_series['name'], body, pw_series['submitter']['email'], patch['msgid'])
+    compose_email(pw_series['name'], body, pw_series['submitter']['email'], patch['msgid'],
+                  test_runner_context.result_logs)
 
 def init_github(repo, pr_num):
     """
@@ -648,6 +906,8 @@ def parse_args():
                         help='Github repo in :owner/:repo')
     parser.add_argument('-s', '--src-path', required=True,
                         help='Path of bluetooth kernel source')
+    parser.add_argument('-b', '--bluez-path', required=True,
+                        help='Path of bluez source')
     parser.add_argument('-v', '--verbose', action='store_true',
                         help='Display debugging info')
 
@@ -655,7 +915,7 @@ def parse_args():
 
 def main():
 
-    global src_dir
+    global src_dir, bluez_dir
 
     args = parse_args()
 
@@ -666,6 +926,7 @@ def main():
     init_github(args.repo, args.pr_num)
 
     src_dir = args.src_path
+    bluez_dir = args.bluez_path
 
     # Run CI tests
     try:
