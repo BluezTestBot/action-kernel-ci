@@ -714,7 +714,7 @@ class CheckTestRunner(CiBase):
             raise EndTest
 
         # Remove terminal color macro
-        stdout_clean = re.sub(r"?\^?\[\[\d?\;?\d+m", "", stdout)
+        stdout_clean = re.sub(r"\[\d?\;?\d+m", "", stdout)
 
         # Save the result to the log file
         self.save_result_log(stdout_clean)
