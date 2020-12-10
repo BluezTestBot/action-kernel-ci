@@ -560,14 +560,14 @@ class CheckTestRunnerSetup(CiBase):
                                         cwd=bluez_dir)
         if ret:
             logger.error("Unable to configure the bluez")
-            return False
+            return None
 
         # make
         logger.info("Run make")
         (ret, stdout, stderr) = run_cmd("make", "-j2", cwd=bluez_dir)
         if ret:
             logger.error("Unable to build bluez")
-            return False
+            return None
 
         tester_path = os.path.join(bluez_dir, "tools/test-runner")
         if not os.path.exists(tester_path):
