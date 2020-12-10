@@ -29,6 +29,7 @@ pw_series = None
 
 src_dir = None
 bluez_dir = None
+output_dir = None
 
 test_suite = {}
 
@@ -523,7 +524,6 @@ class CheckTestRunnerSetup(CiBase):
     test_list = []
     runner = None
     kernel_img = None
-    results_dir = None
     result_logs = []
 
     def config(self):
@@ -546,13 +546,6 @@ class CheckTestRunnerSetup(CiBase):
             else:
                 self.test_list = default_test_list
         logger.debug("test list = %s" % self.test_list)
-
-        # Create result directory
-        ws_path = os.getenv("GITHUB_WORKSPACE")
-        if ws_path:
-            self.results_dir = os.path.join(ws_path, "results")
-            Path(self.results_dir).mkdir(parents=True, exist_ok=True)
-            logger.debug("Results directory is created: %s" % self.results_dir)
 
     def build_bluez(self):
         """
@@ -679,16 +672,14 @@ class CheckTestRunner(CiBase):
         """
         Save the test result(log) to the file
         """
-        global test_runner_context
 
-        if test_runner_context.results_dir:
-            logfile_path = os.path.join(test_runner_context.results_dir, self.tester + ".log")
-            logger.debug("Save the result to the file: %s" % logfile_path)
-            with open(logfile_path, 'w') as output_file:
-                output_file.write(log)
+        logfile_path = os.path.join(output_dir, self.tester + ".log")
+        logger.debug("Save the result to the file: %s" % logfile_path)
+        with open(logfile_path, 'w') as output_file:
+            output_file.write(log)
 
-            # Save the logfile path to the context for later use (attachment)
-            test_runner_context.result_logs.append(logfile_path)
+        # Save the logfile path to the context for later use (attachment)
+        test_runner_context.result_logs.append(logfile_path)
 
     def run(self):
         logger.debug("##### Run CheckTestRunner - %s #####" % self.tester)
@@ -908,6 +899,8 @@ def parse_args():
                         help='Path of bluetooth kernel source')
     parser.add_argument('-b', '--bluez-path', required=True,
                         help='Path of bluez source')
+    parser.add_argument('-o', '--output-path', required=True,
+                        help='Path for tester outputs')
     parser.add_argument('-v', '--verbose', action='store_true',
                         help='Display debugging info')
 
@@ -915,7 +908,7 @@ def parse_args():
 
 def main():
 
-    global src_dir, bluez_dir
+    global src_dir, bluez_dir, output_dir
 
     args = parse_args()
 
@@ -927,6 +920,10 @@ def main():
 
     src_dir = args.src_path
     bluez_dir = args.bluez_path
+    output_dir = os.path.abspath(args.output_path)
+    if not os.path.exists(output_dir):
+        Path(output_dir).mkdir(parents=True, exist_ok=True)
+        logger.debug("Created outputdirectory: %s" % output_dir)
 
     # Run CI tests
     try:

@@ -16,10 +16,12 @@ echo "   PWD:        $(pwd)"
 
 SRC_PATH=$GITHUB_WORKSPACE/$1
 BLUEZ_PATH=$GITHUB_WORKSPACE/$2
+OUTPUT_PATH=$GITHUB_WORKSPACE/$3
 
 echo "Input Parameters"
 echo "   Source Path: $SRC_PATH"
 echo "   Bluez Path: $BLUEZ_PATH"
+echo "   Output Path: $OUTPUT_PATH"
 
 if [ -z "$GITHUB_TOKEN" ]; then
 	echo "Set GITHUB_TOKEN environment variable"
@@ -30,10 +32,4 @@ fi
 PR=${GITHUB_REF#"refs/pull/"}
 PR=${PR%"/merge"}
 
-# Make Result directory
-mkdir results
-
-/run-ci.py -c /config.ini -p $PR -r $GITHUB_REPOSITORY -s $SRC_PATH -b $BLUEZ_PATH -v
-
-# Save the test-runner results
-tar -cvzf results.tar.gz results
+/run-ci.py -c /config.ini -p $PR -r $GITHUB_REPOSITORY -s $SRC_PATH -b $BLUEZ_PATH -o $OUTPUT_PATH -v

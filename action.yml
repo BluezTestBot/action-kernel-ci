@@ -9,7 +9,11 @@ inputs:
     required: true
   bluez_path:
     description: Path of bluez source (relative path from /github/workspace)
-    required: true    
+    required: true
+  output_path:
+    description: Output path (relative path from /github/workspace)
+    required: false
+    default: results
   github_token:
     description: github_token
     required: true
@@ -23,6 +27,7 @@ runs:
   args:
     - ${{ inputs.src_path }}
     - ${{ inputs.bluez_path }}
+    - ${{ inputs.output_path }}
   env:
     GITHUB_TOKEN: ${{ inputs.github_token }}
     EMAIL_TOKEN: ${{ inputs.email_token }}
