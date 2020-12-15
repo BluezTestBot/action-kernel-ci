@@ -733,7 +733,7 @@ class CheckTestRunner(CiBase):
                 result = self.parse_result(line)
                 if result["failed"] != "0":
                     logger.error("Some test failed - Return failure")
-                    self.add_failure("Test Failed")
+                    self.add_failure(line)
                     return
 
                 self.add_success(line)
