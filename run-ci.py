@@ -950,8 +950,12 @@ def main():
     logger.debug("Fetch commits in the tree: %d commits" % github_pr.commits)
     pr_commits = github_pr.commits
     logger.debug("Expand the commits in PR to the src: %d" % pr_commits)
-    proc = subprocess.Popen(('git', 'fetch', '--depth=%d' % pr_commits),
-                                 stdout=subprocess.PIPE, cwd=src_dir)
+    (ret, stdout, stderr) = run_cmd("git", "fetch", "--depth=%d" % pr_commits,
+                                    cwd=src_dir)
+    if ret:
+        logger.error("Failed to fetch the PR commits. error=%s" % stderr)
+    else:
+        logger.debug("output>>\n%s" % stdout)
 
     # Run CI tests
     try:
