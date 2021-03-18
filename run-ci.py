@@ -742,6 +742,9 @@ class CheckTestRunner(CiBase):
         # Save the result to the log file
         self.save_result_log(stdout_clean)
 
+        check_fail = False
+        failed_tc = []
+
         # verdict result
         for line in stdout_clean.splitlines():
             if re.search(r"^Total: ", line):
@@ -751,10 +754,27 @@ class CheckTestRunner(CiBase):
                 if result["failed"] != "0":
                     logger.error("Some test failed - Return failure")
                     self.add_failure(line)
+
+                    # Adding Failed test cases
+                    if len(failed_tc):
+                        self.add_failure("\nFailed Test Cases")
+                        for tc in failed_tc:
+                            self.add_failure(tc)
+
+                    # No need to check failure
+                    check_fail = False
                     return
 
                 self.add_success(line)
                 return
+
+            if re.search(r"^Test Summary", line):
+                logger.debug("Start to check failure in the line")
+                check_fail = True
+
+            if check_fail and re.search(r"Failed", line):
+                logger.debug("Found a failed test case")
+                failed_tc.append(line)
 
         self.add_failure("No test result found")
 
