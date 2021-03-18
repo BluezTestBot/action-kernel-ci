@@ -56,6 +56,12 @@ Linux Bluetooth
 
 '''
 
+TEST_REPORT =  '''##############################
+Test: {} - {}
+{}
+
+'''
+
 def requests_url(url):
     """ Helper function to requests WEB API GET with URL """
 
@@ -853,11 +859,6 @@ def report_ci():
     Generate CI result report and send email
     """
 
-    TEST_REPORT =  '''##############################
-    Test: {} - {}
-    {}
-
-    '''
 
     results = ""
 
