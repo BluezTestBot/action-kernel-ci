@@ -579,7 +579,6 @@ class CheckTestRunnerSetup(CiBase):
         # Configure BlueZ
         logger.info("Configure the BlueZ source")
         (ret, stdout, stderr) = run_cmd("./bootstrap-configure",
-                                        "--enable-external-ell",
                                         cwd=bluez_dir)
         if ret:
             logger.error("Unable to configure the bluez")

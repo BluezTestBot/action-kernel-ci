@@ -28,6 +28,9 @@ if [ -z "$GITHUB_TOKEN" ]; then
 	exit 1
 fi
 
+# Clone ELL
+git clone --depth=1 https://git.kernel.org/pub/scm/libs/ell/ell.git $GITHUB_WORKSPACE/ell
+
 # Get PR number from GITHUB_REF (refs/pull/#/merge)
 PR=${GITHUB_REF#"refs/pull/"}
 PR=${PR%"/merge"}
