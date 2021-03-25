@@ -781,6 +781,10 @@ class CheckTestRunner(CiBase):
                 logger.debug("Found a failed test case")
                 failed_tc.append(line)
 
+            if check_fail and re.search(r"Timed out", line):
+                logger.debug("Found a failed test case: Timed out")
+                failed_tc.append(line)
+
         self.add_failure("No test result found")
 
 
