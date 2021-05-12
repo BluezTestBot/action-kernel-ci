@@ -64,6 +64,8 @@ Test: {} - {} - {:.2f} seconds
 
 '''
 
+ONELINE_RESULT = '''{test:<30}{result:<10}{elapsed:.2f} seconds\n'''
+
 def requests_url(url):
     """ Helper function to requests WEB API GET with URL """
 
@@ -893,8 +895,8 @@ def report_ci():
     Generate CI result report and send email
     """
 
-
-    results = ""
+    results = "Details\n"
+    summary = "Test Summary:\n"
 
     for test_name, test in test_suite.items():
         if test.verdict == Verdict.PASS:
@@ -902,23 +904,35 @@ def report_ci():
                                           test.elapsed(),
                                           test.desc,
                                           test.output)
+            summary += ONELINE_RESULT.format(test=test.display_name,
+                                             result='PASS',
+                                             elapsed=test.elapsed())
         if test.verdict == Verdict.FAIL:
             results += TEST_REPORT.format(test.display_name, "FAIL",
                                           test.elapsed(),
                                           test.desc,
                                           test.output)
+            summary += ONELINE_RESULT.format(test=test.display_name,
+                                             result='FAIL',
+                                             elapsed=test.elapsed())
         if test.verdict == Verdict.ERROR:
             results += TEST_REPORT.format(test.display_name, "ERROR",
                                           test.elapsed(),
                                           test.desc,
                                           test.output)
+            summary += ONELINE_RESULT.format(test=test.display_name,
+                                             result='ERROR',
+                                             elapsed=test.elapsed())
         if test.verdict == Verdict.SKIP:
             results += TEST_REPORT.format(test.display_name, "SKIPPED",
                                           test.elapsed(),
                                           test.desc,
                                           test.output)
+            summary += ONELINE_RESULT.format(test=test.display_name,
+                                             result='ERROR',
+                                             elapsed=test.elapsed())
 
-    body = EMAIL_MESSAGE.format(pw_series["web_url"], results)
+    body = EMAIL_MESSAGE.format(pw_series["web_url"], summary + '\n' + results)
 
     patch = pw_series['patches'][0]
 
