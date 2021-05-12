@@ -406,9 +406,9 @@ class CheckPatch(CiBase):
         return output
 
 
-class CheckGitLint(CiBase):
-    name = "checkgitlint"
-    display_name = "CheckGitLint"
+class GitLint(CiBase):
+    name = "gitlint"
+    display_name = "GitLint"
 
     gitlint_config = '/.gitlint'
 
@@ -436,7 +436,7 @@ class CheckGitLint(CiBase):
         return False
 
     def run(self):
-        logger.debug("##### Run CheckGitLint Test #####")
+        logger.debug("##### Run GitLint Test #####")
 
         self.enable = config_enable(config, self.name)
         self.config()
@@ -487,9 +487,9 @@ class CheckGitLint(CiBase):
         return output
 
 
-class CheckBuildK(CiBase):
-    name = "checkbuildk"
-    display_name = "CheckBuildK"
+class BuildKernel(CiBase):
+    name = "buildkernel"
+    display_name = "BuildKernel"
 
     build_config = "/bluetooth_build.config"
 
@@ -505,7 +505,7 @@ class CheckBuildK(CiBase):
         logger.debug("build_config = %s" % self.build_config)
 
     def run(self):
-        logger.debug("##### Run CheckBuildK Test #####")
+        logger.debug("##### Run BuildKernel Test #####")
 
         self.enable = config_enable(config, self.name)
 
@@ -540,9 +540,9 @@ class CheckBuildK(CiBase):
         self.success()
 
 
-class CheckTestRunnerSetup(CiBase):
-    name = "checktestrunnersetup"
-    display_name = "CheckTestRunner: Setup"
+class TestRunnerSetup(CiBase):
+    name = "testrunnersetup"
+    display_name = "TestRunner: Setup"
 
     test_list = []
     runner = None
@@ -641,7 +641,7 @@ class CheckTestRunnerSetup(CiBase):
         return bzimage_path
 
     def run(self):
-        logger.debug("##### Run CheckTestRunner Setup #####")
+        logger.debug("##### Run TestRunner Setup #####")
 
         global test_runner_context
 
@@ -670,9 +670,9 @@ class CheckTestRunnerSetup(CiBase):
         self.success()
 
 
-class CheckTestRunner(CiBase):
-    name = "checktestrunner"
-    display_name = "CheckTestRunner: "
+class TestRunner(CiBase):
+    name = "testrunner"
+    display_name = "TestRunner: "
     tester = None
     test_summary = None
 
@@ -719,7 +719,7 @@ class CheckTestRunner(CiBase):
         return matches.groupdict()
 
     def run(self):
-        logger.debug("##### Run CheckTestRunner - %s #####" % self.tester)
+        logger.debug("##### Run TestRunner - %s #####" % self.tester)
 
         self.config()
 
@@ -812,7 +812,7 @@ def run_ci(args):
     for testcase in CiBase.__subclasses__():
 
         # skip for test runner class
-        if testcase.__name__ == "CheckTestRunner":
+        if testcase.__name__ == "TestRunner":
             logger.debug("Skip for test runner class for now")
             break
 
@@ -838,7 +838,7 @@ def run_ci(args):
         logger.debug("Running for tester")
         for tester in test_runner_context.test_list:
             logger.debug("running tester: %s" % tester)
-            test = CheckTestRunner(tester)
+            test = TestRunner(tester)
             test_suite[test.name] = test
 
             try:
