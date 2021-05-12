@@ -111,15 +111,30 @@ def patchwork_get_patch_detail_title(title):
 
     logger.error("Cannot find a matching patch from PatchWork series")
 
-def github_pr_post_comment(name, status, output=None):
+GITHUB_COMMENT = '''**{display_name}**
+Test ID: {name}
+Desc: {desc}
+Duration: {elapsed:.2f} seconds
+**Result: {status}**
+'''
+
+GITHUB_COMMENT_OUTPUT = '''Output:
+```
+{output}
+```
+'''
+
+def github_pr_post_comment(test):
     """ Post message to PR page """
 
-    comment = "**" + name + ": " + status + "**\n\n"
-    if output:
-        comment += "Output:\n"
-        comment += "```\n"
+    comment = GITHUB_COMMENT.format(name=test.name,
+                                    display_name=test.display_name,
+                                    desc=test.desc,
+                                    status=test.verdict.name,
+                                    elapsed=test.elapsed())
+    if test.output:
+        output = GITHUB_COMMENT_OUTPUT.format(output=test.output)
         comment += output
-        comment += "\n```\n"
 
     github_pr.create_issue_comment(comment)
 
@@ -865,7 +880,7 @@ def run_ci(args):
 
         logger.info(test.name + " result: " + test.verdict.name)
         logger.debug("Post message to github: " + test.output)
-        github_pr_post_comment(test.name, test.verdict.name, test.output)
+        github_pr_post_comment(test)
 
     if test_runner_context:
         logger.debug("Running for tester")
@@ -886,7 +901,7 @@ def run_ci(args):
 
             logger.info(test.name + " result: " + test.verdict.name)
             logger.debug("Post message to github: " + test.output)
-            github_pr_post_comment(test.name, test.verdict.name, test.output)
+            github_pr_post_comment(test)
 
     return num_fails
 
