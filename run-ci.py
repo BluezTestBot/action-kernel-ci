@@ -9,6 +9,7 @@ import requests
 import re
 import smtplib
 import email.utils
+import time
 from enum import Enum
 from github import Github
 from email.mime.application import MIMEApplication
@@ -57,7 +58,7 @@ Linux Bluetooth
 '''
 
 TEST_REPORT =  '''##############################
-Test: {} - {}
+Test: {} - {} - {:.2f} seconds
 {}
 {}
 
@@ -294,12 +295,15 @@ class CiBase:
     display_name = None
     desc = None
     enable = True
+    start_time = 0
+    end_time = 0
 
     verdict = Verdict.PENDING
     output = ""
 
     def success(self):
         self.verdict = Verdict.PASS
+        self.end_timer()
 
     def add_success(self, msg):
         self.verdict = Verdict.PASS
@@ -307,15 +311,18 @@ class CiBase:
             self.output = msg
         else:
             self.output += "\n" + msg
+        self.end_timer()
 
     def error(self, msg):
         self.verdict = Verdict.ERROR
         self.output = msg
+        self.end_timer()
         raise EndTest
 
     def skip(self, msg):
         self.verdict = Verdict.SKIP
         self.output = msg
+        self.end_timer()
         raise EndTest
 
     def add_failure(self, msg):
@@ -324,6 +331,24 @@ class CiBase:
             self.output = msg
         else:
             self.output += "\n" + msg
+        self.end_timer()
+
+    def add_failure_end_test(self, msg):
+        self.add_failure(msg)
+        raise EndTest
+
+    def start_timer(self):
+        self.start_time = time.time()
+
+    def end_timer(self):
+        self.end_time = time.time()
+
+    def elapsed(self):
+        if self.start_time == 0:
+            return 0
+        if self.end_time == 0:
+            self.end_timer()
+        return self.end_time - self.start_time
 
 
 class CheckPatch(CiBase):
@@ -359,6 +384,7 @@ class CheckPatch(CiBase):
 
     def run(self):
         logger.debug("##### Run CheckPatch Test #####")
+        self.start_timer()
 
         self.enable = config_enable(config, self.name)
         self.config()
@@ -441,6 +467,7 @@ class GitLint(CiBase):
 
     def run(self):
         logger.debug("##### Run GitLint Test #####")
+        self.start_timer()
 
         self.enable = config_enable(config, self.name)
         self.config()
@@ -511,6 +538,7 @@ class BuildKernel(CiBase):
 
     def run(self):
         logger.debug("##### Run BuildKernel Test #####")
+        self.start_timer()
 
         self.enable = config_enable(config, self.name)
 
@@ -525,21 +553,18 @@ class BuildKernel(CiBase):
         (ret, stdout, stderr) = run_cmd("cp", self.build_config, ".config",
                                         cwd=src_dir)
         if ret:
-            self.add_failure(stderr)
-            raise EndTest
+            self.add_failure_end_test(stderr)
 
         # Update .config
         logger.info("Run make olddepconfig")
         (ret, stdout, stderr) = run_cmd("make", "olddefconfig", cwd=src_dir)
         if ret:
-            self.add_failure(stderr)
-            raise EndTest
+            self.add_failure_end_test(stderr)
 
         # make
         (ret, stdout, stderr) = run_cmd("make", cwd=src_dir)
         if ret:
-            self.add_failure(stderr)
-            raise EndTest
+            self.add_failure_end_test(stderr)
 
         # At this point, consider test passed here
         self.success()
@@ -648,6 +673,7 @@ class TestRunnerSetup(CiBase):
 
     def run(self):
         logger.debug("##### Run TestRunner Setup #####")
+        self.start_timer()
 
         global test_runner_context
 
@@ -662,14 +688,12 @@ class TestRunnerSetup(CiBase):
         # Build BlueZ
         self.runner = self.build_bluez()
         if self.runner == None:
-            self.add_failure("Unable to build BlueZ source")
-            raise EndTest
+            self.add_failure_end_test("Unable to build BlueZ source")
 
         # Build Kernel image for tester
         self.kernel_img = self.build_kernel()
         if self.kernel_img == None:
-            self.add_failure("Unable to build Kernel image for tester")
-            raise EndTest
+            self.add_failure_end_test("Unable to build Kernel image for tester")
 
         # At this point, consider test passed here
         test_runner_context = self
@@ -728,6 +752,7 @@ class TestRunner(CiBase):
 
     def run(self):
         logger.debug("##### Run TestRunner - %s #####" % self.tester)
+        self.start_timer()
 
         self.config()
 
@@ -739,15 +764,13 @@ class TestRunner(CiBase):
         # Get Tester Path
         tester_path = os.path.join(bluez_dir, "tools", self.tester)
         if not os.path.exists(tester_path):
-            self.add_failure("Unable to find tester: %s" % tester_path)
-            raise EndTest
+            self.add_failure_end_test("Unable to find tester: %s" % tester_path)
 
         # Running Tester
         (ret, stdout, stderr) = run_cmd(test_runner_context.runner, "-k", test_runner_context.kernel_img, "--", tester_path)
         if ret:
             logger.error("Failed to run tester: ret: %d" % ret)
-            self.add_failure("Failed to run tester")
-            raise EndTest
+            self.add_failure_end_test("Failed to run tester")
 
         # Remove terminal color macro
         stdout_clean = re.sub(r"\x1B\[\d?\;?\d+m", "", stdout)
@@ -876,18 +899,22 @@ def report_ci():
     for test_name, test in test_suite.items():
         if test.verdict == Verdict.PASS:
             results += TEST_REPORT.format(test.display_name, "PASS",
+                                          test.elapsed(),
                                           test.desc,
                                           test.output)
         if test.verdict == Verdict.FAIL:
             results += TEST_REPORT.format(test.display_name, "FAIL",
+                                          test.elapsed(),
                                           test.desc,
                                           test.output)
         if test.verdict == Verdict.ERROR:
             results += TEST_REPORT.format(test.display_name, "ERROR",
+                                          test.elapsed(),
                                           test.desc,
                                           test.output)
         if test.verdict == Verdict.SKIP:
             results += TEST_REPORT.format(test.display_name, "SKIPPED",
+                                          test.elapsed(),
                                           test.desc,
                                           test.output)
 
