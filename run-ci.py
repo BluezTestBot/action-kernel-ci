@@ -59,6 +59,7 @@ Linux Bluetooth
 TEST_REPORT =  '''##############################
 Test: {} - {}
 {}
+{}
 
 '''
 
@@ -291,6 +292,7 @@ class CiBase:
     """
     name = None
     display_name = None
+    desc = None
     enable = True
 
     verdict = Verdict.PENDING
@@ -327,6 +329,7 @@ class CiBase:
 class CheckPatch(CiBase):
     name = "checkpatch"
     display_name = "CheckPatch"
+    desc = "Run checkpatch.pl script with rule in .checkpatch.conf"
 
     checkpatch_pl = '/usr/bin/checkpatch.pl'
 
@@ -409,6 +412,7 @@ class CheckPatch(CiBase):
 class GitLint(CiBase):
     name = "gitlint"
     display_name = "GitLint"
+    desc = "Run gitlint with rule in .gitlint"
 
     gitlint_config = '/.gitlint'
 
@@ -490,6 +494,7 @@ class GitLint(CiBase):
 class BuildKernel(CiBase):
     name = "buildkernel"
     display_name = "BuildKernel"
+    desc = "Build Kernel with minimal configuration supports Bluetooth"
 
     build_config = "/bluetooth_build.config"
 
@@ -543,6 +548,7 @@ class BuildKernel(CiBase):
 class TestRunnerSetup(CiBase):
     name = "testrunnersetup"
     display_name = "TestRunner: Setup"
+    desc = "Setup environment for running Test Runner"
 
     test_list = []
     runner = None
@@ -673,6 +679,7 @@ class TestRunnerSetup(CiBase):
 class TestRunner(CiBase):
     name = "testrunner"
     display_name = "TestRunner: "
+    desc = "Run test-runner with "
     tester = None
     test_summary = None
 
@@ -683,6 +690,7 @@ class TestRunner(CiBase):
         self.tester = tester
         self.name = self.name + tester
         self.display_name = self.display_name + tester
+        self.desc = self.desc + tester
 
     def config(self):
         """
@@ -867,13 +875,21 @@ def report_ci():
 
     for test_name, test in test_suite.items():
         if test.verdict == Verdict.PASS:
-            results += TEST_REPORT.format(test.display_name, "PASS", test.output)
+            results += TEST_REPORT.format(test.display_name, "PASS",
+                                          test.desc,
+                                          test.output)
         if test.verdict == Verdict.FAIL:
-            results += TEST_REPORT.format(test.display_name, "FAIL", test.output)
+            results += TEST_REPORT.format(test.display_name, "FAIL",
+                                          test.desc,
+                                          test.output)
         if test.verdict == Verdict.ERROR:
-            results += TEST_REPORT.format(test.display_name, "ERROR", test.output)
+            results += TEST_REPORT.format(test.display_name, "ERROR",
+                                          test.desc,
+                                          test.output)
         if test.verdict == Verdict.SKIP:
-            results += TEST_REPORT.format(test.display_name, "SKIPPED", test.output)
+            results += TEST_REPORT.format(test.display_name, "SKIPPED",
+                                          test.desc,
+                                          test.output)
 
     body = EMAIL_MESSAGE.format(pw_series["web_url"], results)
 
