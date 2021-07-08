@@ -28,6 +28,11 @@ if [ -z "$GITHUB_TOKEN" ]; then
 	exit 1
 fi
 
+# Copy tester.config from the upstream repo
+wget --no-verbose --no-check-certificate \
+	https://git.kernel.org/pub/scm/bluetooth/bluez.git/plain/doc/tester.config \
+	-P $GITHUB_WORKSPACE/ && cp $GITHUB_WORKSPACE/tester.config /tester.config
+
 # Clone ELL
 git clone --depth=1 https://git.kernel.org/pub/scm/libs/ell/ell.git $GITHUB_WORKSPACE/ell
 
