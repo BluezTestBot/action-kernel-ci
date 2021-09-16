@@ -634,7 +634,7 @@ class GitLint(CiBase):
                 continue
 
             # Success
-            self.submit_result(patch, Verdict.PASS, "Gitlink PASS")
+            self.submit_result(patch, Verdict.PASS, "Gitlint PASS")
 
         # Overall status
         if self.verdict != Verdict.FAIL:
@@ -1078,20 +1078,31 @@ Test: {} - {} - {:.2f} seconds
 
 ONELINE_RESULT = '''{test:<30}{result:<10}{elapsed:.2f} seconds\n'''
 
+def all_test_passed():
+    """
+    Return True if all tests passed, otherwise return False
+    """
+
+    for test_name, test in test_suite.items():
+        if test.verdict != Verdict.PASS:
+            return False
+
+    return True
+
 def report_ci():
     """
     Generate CI result report and send email
     """
 
-    results = "Details\n"
+    results = ""
     summary = "Test Summary:\n"
+
+    if all_test_passed() == False:
+        results = "Details\n"
 
     for test_name, test in test_suite.items():
         if test.verdict == Verdict.PASS:
-            results += TEST_REPORT.format(test.display_name, "PASS",
-                                          test.elapsed(),
-                                          test.desc,
-                                          test.output)
+            # No need to add result of passed tests to simplify the email
             summary += ONELINE_RESULT.format(test=test.display_name,
                                              result='PASS',
                                              elapsed=test.elapsed())
