@@ -491,6 +491,8 @@ class CheckPatch(CiBase):
     desc = "Run checkpatch.pl script with rule in .checkpatch.conf"
 
     checkpatch_pl = '/usr/bin/checkpatch.pl'
+    ignore = None
+    checkpatch_cmd = []
 
     def config(self):
         """
@@ -504,7 +506,19 @@ class CheckPatch(CiBase):
         if self.name in config:
             if 'bin_path' in config[self.name]:
                 self.checkpatch_pl = config[self.name]['bin_path']
+
+            if 'ignore' in config[self.name]:
+                self.ignore = config[self.name]['ignore']
+            logger.debug("checkpatch ignore: %s" % self.ignore)
+
         logger.debug("checkpatch_pl = %s" % self.checkpatch_pl)
+
+        self.checkpatch_cmd.append(self.checkpatch_pl)
+        self.checkpatch_cmd.append('--show-types')
+
+        if self.ignore != None:
+            self.checkpatch_cmd.append('--ignore')
+            self.checkpatch_cmd.append(self.ignore)
 
     def run(self):
         logger.debug("##### Run CheckPatch Test #####")
@@ -569,11 +583,15 @@ class CheckPatch(CiBase):
         logger.debug("Save patch: %s" % filename)
         patch_file = patchwork_save_patch(patch, filename)
 
+        copied_cmd = self.checkpatch_cmd.copy()
+        copied_cmd.append(patch_file)
+
+        logger.debug("CMD: %s" % copied_cmd)
+
         try:
-            output = subprocess.check_output((self.checkpatch_pl, '--no-tree',
-                                                                patch_file),
-                                    stderr=subprocess.STDOUT,
-                                    cwd=src_dir)
+            output = subprocess.check_output(copied_cmd,
+                                             stderr=subprocess.STDOUT,
+                                             cwd=src_dir)
             output = output.decode("utf-8")
 
         except subprocess.CalledProcessError as ex:
