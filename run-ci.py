@@ -832,22 +832,22 @@ class IncrementalBuild(CiBase):
             # Copy bluetooth build config
             logger.info("Copy config file: %s" % self.build_config)
             (ret, stdout, stderr) = run_cmd("cp", self.build_config, ".config",
-                                            cwd=src_dir)
+                                            cwd=src2_dir)
             if ret:
                 self.submit_result(pw_series_patch_1, Verdict.FAIL,
                                    "Build Kernel Copy Config FAIL: " + stderr)
                 self.add_failure_end_test(stderr)
 
             # Update .config
-            logger.info("Run make olddepconfig")
-            (ret, stdout, stderr) = run_cmd("make", "olddefconfig", cwd=src_dir)
+            logger.info("Run make olddefconfig")
+            (ret, stdout, stderr) = run_cmd("make", "olddefconfig", cwd=src2_dir)
             if ret:
                 self.submit_result(pw_series_patch_1, Verdict.FAIL,
                                    "Make olddefconfig FAIL: " + stderr)
                 self.add_failure_end_test(stderr)
 
             # make
-            (ret, stdout, stderr) = run_cmd("make", "-j2", cwd=src_dir)
+            (ret, stdout, stderr) = run_cmd("make", "-j2", cwd=src2_dir)
             if ret:
                 self.submit_result(pw_series_patch_1, Verdict.FAIL,
                                    "Build Kernel make FAIL: " + stderr)
