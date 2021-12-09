@@ -30,6 +30,7 @@ pw_series = None
 pw_series_patch_1 = None
 
 src_dir = None
+src2_dir = None
 bluez_dir = None
 output_dir = None
 
@@ -1020,6 +1021,122 @@ class TestRunner(CiBase):
         self.add_failure("No test result found")
 
 
+class IncrementalBuild(CiBase):
+    name = "incremental_build"
+    display_name = "Incremental Build with patches"
+    desc = "Incremental build per patch in the series"
+
+    def config(self):
+        """
+        Configure the test cases.
+        """
+        logger.debug("Parser configuration")
+
+        self.enable = config_enable(config, self.name)
+        self.submit_pw = config_submit_pw(config, self.name)
+
+        if self.name in config:
+            if 'config_path' in config[self.name]:
+                self.build_config = config[self.name]['config_path']
+        logger.debug("build_config = %s" % self.build_config)
+
+    def run(self):
+        logger.debug("##### Run BuildKernel Test #####")
+        self.start_timer()
+
+        self.config()
+
+        # Check if it is disabled.
+        if self.enable == False:
+            self.submit_result(pw_series_patch_1, Verdict.SKIP,
+                               "Incremental Build Kernel SKIP(Disabled)")
+            self.skip("Disabled in configuration")
+
+        # Run only if "BuildKernel" success
+        if test_suite["buildkernel"].verdict != Verdict.PASS:
+            logger.info("buildkernel test is not success. skip this test")
+            self.submit_result(pw_series_patch_1, Verdict.SKIP,
+                                "Incremental Build Kernel SKIP(Build Fail)")
+            self.skip("buildkernel failed")
+
+        # If there is only one patch, no need to run and just return success
+        if github_pr.commits == 1:
+            logger.debug("Only 1 patch and no need to run here again")
+            self.success()
+            return
+
+        # Set the source to the base workflow branch
+        (ret, stdout, stderr) = run_cmd("git", "checkout", "origin/workflow",
+                                        cwd=src2_dir)
+
+        # Get the patch from the series, apply it and build.
+        for patch_item in pw_series['patches']:
+            logger.debug("patch id: %s" % patch_item['id'])
+
+            patch = patchwork_get_patch(str(patch_item['id']))
+
+            # Apply patch
+            (output, error) = self.apply_patch(patch, src2_dir)
+            if error != None:
+                msg = "{}\n{}".format(patch['name'], error)
+                self.submit_result(patch, Verdict.FAIL,
+                                   "Applying patch FAIL: " + error)
+                self.add_failure_end_test(msg)
+            logger.debug("Patch Applied")
+
+            # Copy bluetooth build config
+            logger.info("Copy config file: %s" % self.build_config)
+            (ret, stdout, stderr) = run_cmd("cp", self.build_config, ".config",
+                                            cwd=src_dir)
+            if ret:
+                self.submit_result(pw_series_patch_1, Verdict.FAIL,
+                                   "Build Kernel Copy Config FAIL: " + stderr)
+                self.add_failure_end_test(stderr)
+
+            # Update .config
+            logger.info("Run make olddepconfig")
+            (ret, stdout, stderr) = run_cmd("make", "olddefconfig", cwd=src_dir)
+            if ret:
+                self.submit_result(pw_series_patch_1, Verdict.FAIL,
+                                   "Make olddefconfig FAIL: " + stderr)
+                self.add_failure_end_test(stderr)
+
+            # make
+            (ret, stdout, stderr) = run_cmd("make", "-j2", cwd=src_dir)
+            if ret:
+                self.submit_result(pw_series_patch_1, Verdict.FAIL,
+                                   "Build Kernel make FAIL: " + stderr)
+                self.add_failure_end_test(stderr)
+
+        # All patches passed the build test
+        self.submit_result(pw_series_patch_1, Verdict.PASS, "Pass")
+        self.success()
+
+    def apply_patch(self, patch, target_dir):
+        """
+        Save the patch and apply to the source tree
+        """
+
+        output = None
+        error = None
+
+        # Save the patch to file
+        filename = os.path.join(target_dir, str(patch['id']) + ".patch")
+        logger.debug("Save patch: %s" % filename)
+        patch_file = patchwork_save_patch(patch, filename)
+
+        try:
+            output = subprocess.check_output(('git', 'am', patch_file),
+                                             stderr=subprocess.STDOUT,
+                                             cwd=target_dir)
+            output = output.decode("utf-8")
+        except subprocess.CalledProcessError as ex:
+            error = ex.output.decode("utf-8")
+            logger.error("git am returned with error")
+            logger.error("output: %s" % error)
+
+        return (output, error)
+
 class EndTest(Exception):
     """
     End of Test
@@ -1249,7 +1366,7 @@ def parse_args():
 
 def main():
 
-    global src_dir, bluez_dir, output_dir
+    global src_dir, src2_dir, bluez_dir, output_dir
 
     args = parse_args()
 
@@ -1260,6 +1377,7 @@ def main():
     init_github(args.repo, args.pr_num)
 
     src_dir = args.src_path
+    src2_dir = src_dir + "2"
     bluez_dir = args.bluez_path
     output_dir = os.path.abspath(args.output_path)
     if not os.path.exists(output_dir):
