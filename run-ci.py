@@ -8,6 +8,7 @@ import configparser
 import requests
 import re
 import smtplib
+import shutil
 import email.utils
 import time
 from enum import Enum
@@ -1379,6 +1380,11 @@ def main():
 
     src_dir = args.src_path
     src2_dir = src_dir + "2"
+
+    # Duplicate the src for 2nd build test case
+    shutil.copytree(src_dir, src2_dir)
+    logger.debug("Duplicate src_dir to src2_dir")
+
     bluez_dir = args.bluez_path
     output_dir = os.path.abspath(args.output_path)
     if not os.path.exists(output_dir):
