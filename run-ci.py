@@ -742,7 +742,7 @@ class BuildKernel(CiBase):
             self.add_failure_end_test(stderr)
 
         # make
-        (ret, stdout, stderr) = run_cmd("make", cwd=src_dir)
+        (ret, stdout, stderr) = run_cmd("make", "-j2", cwd=src_dir)
         if ret:
             self.submit_result(pw_series_patch_1, Verdict.FAIL,
                                "Build Kernel make FAIL: " + stderr)
