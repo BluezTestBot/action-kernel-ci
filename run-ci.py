@@ -773,7 +773,7 @@ class IncrementalBuild(CiBase):
         logger.debug("build_config = %s" % self.build_config)
 
     def run(self):
-        logger.debug("##### Run BuildKernel Test #####")
+        logger.debug("##### Run IncrementalBuild Test #####")
         self.start_timer()
 
         self.config()
@@ -798,8 +798,21 @@ class IncrementalBuild(CiBase):
             return
 
         # Set the source to the base workflow branch
+        (ret, stdout, stderr) = run_cmd("git", "fetch", "--depth=2", "origin",
+                                        "workflow", cwd=src2_dir)
+        if ret:
+            msg = "Error: \n"
+            if stderr != None:
+                msg += "{}".format(stderr)
+            self.add_failure_end_test(msg)
+
         (ret, stdout, stderr) = run_cmd("git", "checkout", "origin/workflow",
                                         cwd=src2_dir)
+        if ret:
+            msg = "Error: \n"
+            if stderr != None:
+                msg += "{}".format(stderr)
+            self.add_failure_end_test(msg)
 
         # Get the patch from the series, apply it and build.
         for patch_item in pw_series['patches']:
