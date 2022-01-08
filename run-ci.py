@@ -926,6 +926,7 @@ class TestRunnerSetup(CiBase):
         # Configure BlueZ
         logger.info("Configure the BlueZ source")
         (ret, stdout, stderr) = run_cmd("./bootstrap-configure",
+                                        "--disable-lsan", "--disable-asan",
                                         cwd=bluez_dir)
         if ret:
             logger.error("Unable to configure the bluez")
