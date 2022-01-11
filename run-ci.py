@@ -697,6 +697,7 @@ class BuildKernel(CiBase):
     desc = "Build Kernel with minimal configuration supports Bluetooth"
 
     build_config = "/bluetooth_build.config"
+    simple_build = False
 
     def config(self):
         """
@@ -710,6 +711,10 @@ class BuildKernel(CiBase):
         if self.name in config:
             if 'config_path' in config[self.name]:
                 self.build_config = config[self.name]['config_path']
+            if 'simple_build' in config[self.name]:
+                if config[self.name]['simple_build'] == 'yes':
+                    logger.info("config.simple_build" + " is enabled")
+                    self.simple_build = True
         logger.debug("build_config = %s" % self.build_config)
 
     def run(self):
@@ -742,11 +747,27 @@ class BuildKernel(CiBase):
             self.add_failure_end_test(stderr)
 
         # make
-        (ret, stdout, stderr) = run_cmd("make", "-j2", cwd=src_dir)
-        if ret:
-            self.submit_result(pw_series_patch_1, Verdict.FAIL,
-                               "Build Kernel make FAIL: " + stderr)
-            self.add_failure_end_test(stderr)
+        if self.simple_build:
+            (ret, stdout, stderr) = run_cmd("make", "-j2", "net/bluetooth/",
+                                            cwd=src_dir)
+            if ret:
+                self.submit_result(pw_series_patch_1, Verdict.FAIL,
+                                   "Build Kernel make FAIL: " + stderr)
+                self.add_failure_end_test(stderr)
+
+            (ret, stdout, stderr) = run_cmd("make", "-j2", "drivers/bluetooth/",
+                                            cwd=src_dir)
+            if ret:
+                self.submit_result(pw_series_patch_1, Verdict.FAIL,
+                                   "Build Kernel make FAIL: " + stderr)
+                self.add_failure_end_test(stderr)
+        else:
+            # full build 
+            (ret, stdout, stderr) = run_cmd("make", "-j2", cwd=src_dir)
+            if ret:
+                self.submit_result(pw_series_patch_1, Verdict.FAIL,
+                                   "Build Kernel make FAIL: " + stderr)
+                self.add_failure_end_test(stderr)
 
         # At this point, consider test passed here
         self.submit_result(pw_series_patch_1, Verdict.PASS, "Build Kernel PASS")
