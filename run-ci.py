@@ -691,6 +691,53 @@ class GitLint(CiBase):
         return output
 
 
+class SubjectPrefix(CiBase):
+    name = "subjectprefix"
+    display_name = "SubjectPrefix"
+    desc = "Check subject contains \"Bluetooth\" prefix"
+
+    def config(self):
+        """
+        Config the test cases.
+        """
+        logger.debug("Parser configuration")
+
+        self.enable = config_enable(config, self.name)
+        self.submit_pw = config_submit_pw(config, self.name)
+
+    def run(self):
+        logger.debug("##### Run SubjectPrefix Test #####")
+        self.start_timer()
+
+        self.config()
+
+        # Check if it is disabled.
+        if self.enable == False:
+            self.submit_result(pw_series_patch_1, Verdict.SKIP,
+                               "SubjectPrefix SKIP(Disabled)")
+            self.skip("Disabled in configuration")
+
+        for patch_item in pw_series['patches']:
+            logger.debug("patch id: %s" % patch_item['id'])
+
+            patch = patchwork_get_patch(str(patch_item['id']))
+
+            # Check if the name contains "Bluetooth: "
+            s = patch['name'].find('Bluetooth: ')
+            if s < 0:
+                # No Bluetooth prefix found. Instead of failing it,
+                # set the result to WARNING just enough to get an
+                # attention
+                msg = "\"Bluetooth: \" is not specified in the subject"
+                self.submit_result(patch, Verdict.WARNING, msg)
+            else:
+                self.submit_result(patch, Verdict.PASS, "PASS")
+
+        # Overall status
+        if self.verdict != Verdict.FAIL:
+            self.success()
+
+
 class BuildKernel(CiBase):
     name = "buildkernel"
     display_name = "BuildKernel"
