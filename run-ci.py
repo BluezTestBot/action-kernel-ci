@@ -821,6 +821,89 @@ class BuildKernel(CiBase):
         self.success()
 
 
+class BuildKernel32(CiBase):
+    name = "buildkernel32"
+    display_name = "BuildKernel32"
+    desc = "Build 32bit Kernel with minimal configuration supports Bluetooth"
+
+    build_config = "/bluetooth_build.config"
+    simple_build = False
+
+    def config(self):
+        """
+        Configure the test cases.
+        """
+        logger.debug("Parser configuration")
+
+        self.enable = config_enable(config, self.name)
+        self.submit_pw = config_submit_pw(config, self.name)
+
+        if self.name in config:
+            if 'config_path' in config[self.name]:
+                self.build_config = config[self.name]['config_path']
+            if 'simple_build' in config[self.name]:
+                if config[self.name]['simple_build'] == 'yes':
+                    logger.info("config.simple_build" + " is enabled")
+                    self.simple_build = True
+        logger.debug("build_config = %s" % self.build_config)
+
+    def run(self):
+        logger.debug("##### Run BuildKernel32 Test #####")
+        self.start_timer()
+
+        self.config()
+
+        # Check if it is disabled.
+        if self.enable == False:
+            self.submit_result(pw_series_patch_1, Verdict.SKIP,
+                               "Build Kernel32 SKIP(Disabled)")
+            self.skip("Disabled in configuration")
+
+        # Copy bluetooth build config
+        logger.info("Copy config file: %s" % self.build_config)
+        (ret, stdout, stderr) = run_cmd("cp", self.build_config, ".config",
+                                        cwd=src_dir)
+        if ret:
+            self.submit_result(pw_series_patch_1, Verdict.FAIL,
+                               "Build Kernel32 Copy Config FAIL: " + stderr)
+            self.add_failure_end_test(stderr)
+
+        # Update .config
+        logger.info("Run make ARCH=i386 olddepconfig")
+        (ret, stdout, stderr) = run_cmd("make", "ARCH=i386", "olddefconfig", cwd=src_dir)
+        if ret:
+            self.submit_result(pw_series_patch_1, Verdict.FAIL,
+                               "Build Kernel32 Make olddefconfig FAIL: " + stderr)
+            self.add_failure_end_test(stderr)
+
+        # make
+        if self.simple_build:
+            (ret, stdout, stderr) = run_cmd("make", "ARCH=i386", "-j2", "net/bluetooth/",
+                                            cwd=src_dir)
+            if ret:
+                self.submit_result(pw_series_patch_1, Verdict.FAIL,
+                                   "Build Kernel32 make FAIL: " + stderr)
+                self.add_failure_end_test(stderr)
+
+            (ret, stdout, stderr) = run_cmd("make", "ARCH=i386", "-j2", "drivers/bluetooth/",
+                                            cwd=src_dir)
+            if ret:
+                self.submit_result(pw_series_patch_1, Verdict.FAIL,
+                                   "Build Kernel32 make FAIL: " + stderr)
+                self.add_failure_end_test(stderr)
+        else:
+            # full build
+            (ret, stdout, stderr) = run_cmd("make", "ARCH=i386", "-j2", cwd=src_dir)
+            if ret:
+                self.submit_result(pw_series_patch_1, Verdict.FAIL,
+                                   "Build Kernel32 make FAIL: " + stderr)
+                self.add_failure_end_test(stderr)
+
+        # At this point, consider test passed here
+        self.submit_result(pw_series_patch_1, Verdict.PASS, "Build Kernel32 PASS")
+        self.success()
+
+
 class IncrementalBuild(CiBase):
     name = "incremental_build"
     display_name = "Incremental Build with patches"
