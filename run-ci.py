@@ -795,14 +795,14 @@ class BuildKernel(CiBase):
 
         # make
         if self.simple_build:
-            (ret, stdout, stderr) = run_cmd("make", "-j2", "net/bluetooth/",
+            (ret, stdout, stderr) = run_cmd("make", "-j2", "W=1", "net/bluetooth/",
                                             cwd=src_dir)
             if ret:
                 self.submit_result(pw_series_patch_1, Verdict.FAIL,
                                    "Build Kernel make FAIL: " + stderr)
                 self.add_failure_end_test(stderr)
 
-            (ret, stdout, stderr) = run_cmd("make", "-j2", "drivers/bluetooth/",
+            (ret, stdout, stderr) = run_cmd("make", "-j2", "W=1", "drivers/bluetooth/",
                                             cwd=src_dir)
             if ret:
                 self.submit_result(pw_series_patch_1, Verdict.FAIL,
@@ -878,14 +878,14 @@ class BuildKernel32(CiBase):
 
         # make
         if self.simple_build:
-            (ret, stdout, stderr) = run_cmd("make", "ARCH=i386", "-j2", "net/bluetooth/",
+            (ret, stdout, stderr) = run_cmd("make", "ARCH=i386", "-j2", "W=1", "net/bluetooth/",
                                             cwd=src_dir)
             if ret:
                 self.submit_result(pw_series_patch_1, Verdict.FAIL,
                                    "Build Kernel32 make FAIL: " + stderr)
                 self.add_failure_end_test(stderr)
 
-            (ret, stdout, stderr) = run_cmd("make", "ARCH=i386", "-j2", "drivers/bluetooth/",
+            (ret, stdout, stderr) = run_cmd("make", "ARCH=i386", "-j2", "W=1", "drivers/bluetooth/",
                                             cwd=src_dir)
             if ret:
                 self.submit_result(pw_series_patch_1, Verdict.FAIL,
@@ -1005,14 +1005,14 @@ class IncrementalBuild(CiBase):
 
             # make
             if self.simple_build:
-                (ret, stdout, stderr) = run_cmd("make", "-j2", "net/bluetooth/",
+                (ret, stdout, stderr) = run_cmd("make", "-j2", "W=1", "net/bluetooth/",
                                                 cwd=src2_dir)
                 if ret:
                     self.submit_result(pw_series_patch_1, Verdict.FAIL,
                                        "Build Kernel make FAIL: " + stderr)
                     self.add_failure_end_test(stderr)
 
-                (ret, stdout, stderr) = run_cmd("make", "-j2", "drivers/bluetooth/",
+                (ret, stdout, stderr) = run_cmd("make", "-j2", "W=1", "drivers/bluetooth/",
                                                 cwd=src2_dir)
                 if ret:
                     self.submit_result(pw_series_patch_1, Verdict.FAIL,
