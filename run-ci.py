@@ -729,9 +729,11 @@ class SubjectPrefix(CiBase):
                 # set the result to WARNING just enough to get an
                 # attention
                 msg = "\"Bluetooth: \" is not specified in the subject"
-                self.submit_result(patch, Verdict.WARNING, msg)
-            else:
-                self.submit_result(patch, Verdict.PASS, "PASS")
+                self.submit_result(patch, Verdict.FAIL, msg)
+                self.add_failure(msg)
+                continue
+
+            self.submit_result(patch, Verdict.PASS, "PASS")
 
         # Overall status
         if self.verdict != Verdict.FAIL:
