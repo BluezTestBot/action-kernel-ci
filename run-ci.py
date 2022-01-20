@@ -362,14 +362,14 @@ def compose_email(title, body, submitter, msgid, attachments=[]):
     logger.debug("Mail Message: {}".format(msg))
 
     # Attachment
-    logger.debug("Attachment count=%d" % len(attachments))
-    for logfile in attachments:
-        logfile_base = os.path.basename(logfile)
-        with open(logfile, "rb") as f:
-            part = MIMEApplication(f.read(), Name=logfile_base)
-        part['Content-Disposition'] = 'attachment; filename="%s"' % logfile_base
-        msg.attach(part)
-        logger.debug("Attached file: %s(%s)" % (logfile, logfile_base))
+    # logger.debug("Attachment count=%d" % len(attachments))
+    # for logfile in attachments:
+    #     logfile_base = os.path.basename(logfile)
+    #     with open(logfile, "rb") as f:
+    #         part = MIMEApplication(f.read(), Name=logfile_base)
+    #     part['Content-Disposition'] = 'attachment; filename="%s"' % logfile_base
+    #     msg.attach(part)
+    #     logger.debug("Attached file: %s(%s)" % (logfile, logfile_base))
 
     # Send email
     send_email(sender, receivers, msg)
