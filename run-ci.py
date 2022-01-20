@@ -123,7 +123,7 @@ def patchwork_get_sid(pr_title):
     try:
         sid = re.search(r'^\[PW_SID:([0-9]+)\]', pr_title).group(1)
     except AttributeError:
-        logging.error("Unable to find the series_id from title %s" % pr_title)
+        logger.error("Unable to find the series_id from title %s" % pr_title)
         sid = None
 
     return sid
@@ -261,25 +261,32 @@ def send_email(sender, receiver, msg):
 
     email_cfg = config['email']
 
+    logger.debug("Send email with result")
+
     if 'EMAIL_TOKEN' not in os.environ:
-        logging.warning("missing EMAIL_TOKEN. Skip sending email")
+        logger.warning("missing EMAIL_TOKEN. Skip sending email")
         return
+
+    logger.debug("EMAIL TOKEN is set in Environment")
 
     try:
         session = smtplib.SMTP(email_cfg['server'], int(email_cfg['port']))
+        logger.debug("SMTP session is created")
         session.ehlo()
         if 'starttls' not in email_cfg or email_cfg['starttls'] == 'yes':
             session.starttls()
+            logger.debug("SMTP TLS is set")
         session.ehlo()
         session.login(sender, os.environ['EMAIL_TOKEN'])
+        logger.debug("SMTP EMAIL_TOKEN is set")
         session.sendmail(sender, receiver, msg.as_string())
-        logging.info("Successfully sent email")
+        logger.info("Successfully sent email")
     except Exception as e:
-        logging.error("Exception: {}".format(e))
+        logger.error("Exception: {}".format(e))
     finally:
         session.quit()
 
-    logging.info("Sending email done")
+    logger.info("Sending email done")
 
 def get_receivers(submitter):
     """
