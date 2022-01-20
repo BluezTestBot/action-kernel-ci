@@ -809,7 +809,7 @@ class BuildKernel(CiBase):
                                    "Build Kernel make FAIL: " + stderr)
                 self.add_failure_end_test(stderr)
         else:
-            # full build 
+            # full build
             (ret, stdout, stderr) = run_cmd("make", "-j2", cwd=src_dir)
             if ret:
                 self.submit_result(pw_series_patch_1, Verdict.FAIL,
