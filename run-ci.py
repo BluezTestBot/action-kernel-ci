@@ -1461,9 +1461,13 @@ def report_ci():
 
     patch = pw_series['patches'][0]
 
-    # Compose email and send
-    compose_email(pw_series['name'], body, pw_series['submitter']['email'], patch['msgid'],
-                  test_runner_context.result_logs)
+    if config_enable(config, 'email'):
+        # Compose email and send
+        compose_email(pw_series['name'], body, pw_series['submitter']['email'],
+                      patch['msgid'], test_runner_context.result_logs)
+    else:
+        logger.info("Email is disabled. Skip sending it")
+        logger.debug("Message Body:\n%s" % body)
 
 def init_github(repo, pr_num):
     """
