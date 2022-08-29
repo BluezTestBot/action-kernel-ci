@@ -1085,6 +1085,7 @@ class TestRunnerSetup(CiBase):
         self.submit_pw = config_submit_pw(config, self.name)
 
         default_test_list = ["bnep-tester",
+                             "iso-tester",
                              "l2cap-tester",
                              "mgmt-tester",
                              "rfcomm-tester",
